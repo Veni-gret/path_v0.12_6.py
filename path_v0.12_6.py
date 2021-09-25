@@ -16,7 +16,6 @@ PI = 3.14
 RED = (225, 0, 50)
 FPS = 60
 
-# make a mouse chuse nearest cheese
 # add health fo cheese
 # add icon for damage
 # do damage to mouse
@@ -89,6 +88,7 @@ class Game:
         self.path_change = False
         self.back_on_path = False
         self.enemy_targets = []
+
     def run(self):
         play = True
         for square in self.block_point_list:
@@ -101,11 +101,11 @@ class Game:
                     play = False
                 if event.type == pg.MOUSEBUTTONUP and time.time()-start_time > 0.2:
 
-                    #control_panel_event
+                    # control_panel_event
                     for key in self.control_panel_dict_2:
                         if self.control_panel_dict_2[key].rect.collidepoint((event.pos[0], event.pos[1]-self.game_field_y)):
                             self.control_panel.selected_item = self.control_panel_dict_2[key]
-                    #battlefiel_event
+                    # battlefiel_event
                     for key in self.image_dict:
                         for enemy in self.enemy_list:
                             if self.image_dict[key][1].collidepoint(enemy.enemy_pos):
@@ -132,18 +132,17 @@ class Game:
                             for obj in self.added_objects_dict_2:
                                 if self.added_objects_dict_2[obj].target_rank > 0:
                                     self.enemy_targets.append(self.added_objects_dict_2[obj].position)
-                            if not self.enemy_targets:
-                                self.enemy_targets = [None]
 
                             for enemy in self.enemy_list:
                                 enemy.path = []
                                 enemy.new_path = True
-                                enemy.target = self.enemy_targets[0]
+                                enemy.target_list = self.enemy_targets
                             self.path_change = False
 
             if not self.path_change:
                 for enemy in self.enemy_list:
                     enemy.make_a_path(self.block_point_list, self.graph)
+
                 self.path_change = True
             for enemy in self.enemy_list:
                 enemy.action()
@@ -185,10 +184,12 @@ class Block(FieldObject):
         super().__init__(image, size)
         self.target_rank = 0
 
+
 class Target(FieldObject):
     def __init__(self, image, size):
         super().__init__(image, size)
         self.target_rank = 3
+
 
 class PanelObject(FieldObject):
     def __init__(self, image, size):
@@ -231,8 +232,6 @@ class Battlefield:
         self.grath = {}
         self.r_long_row = self.__around_long_row()
         self.r_short_row = self.__around_short_row()
-
-
 
     def __field_array(self):
         """
@@ -330,11 +329,7 @@ class Battlefield:
                         if 0 < i + i_s < max_y + 1 and 0 < j + j_s < len(self.array[i + i_s - 1]) + 1:
                             grath[self.array[i - 1][j - 1]].add(self.array[i + i_s - 1][j + j_s - 1])
         self.grath = grath
-
-
         return self.grath
-
-
 
 
 class Enemy:
@@ -359,8 +354,8 @@ class Enemy:
         self.new_path = True
         self.ready_for_attack = False
         self.attack_step = 120
+        self.target_list = []
         self.target = None
-
 
     def start_point(self, x, y):
         self.x = x
@@ -378,17 +373,18 @@ class Enemy:
             pg.draw.circle(self.surface, RED, (pos[0], pos[1]), self.r*2)
 
     def make_a_path(self, blocked, graph):
-        if self.target is None:
+        if not self.target_list:
             path = (self.x, self.y)
             self.path = path
             return path
         else:
-            path = self.rat_path.levenstein(self.enemy_pos, self.target, blocked, self.collide_point, self.next_step, graph)
+            print("cat", blocked)
+            path = self.rat_path.levenstein(self.enemy_pos, self.target_list, blocked, self.collide_point, self.next_step, graph)
             self.path = path
             return path
 
     def action(self):
-        if self.target is None:
+        if not self.target_list:
             self.enemy_pos = (self.x, self.y)
         else:
             if self.new_path:
@@ -407,7 +403,6 @@ class Enemy:
         d_step = len_path / 0.5
         if move_to_x != move_from_x:
             k = (move_to_y - move_from_y) / (move_to_x - move_from_x)
-            print(k)
             d_step_x = (move_to_x - move_from_x) / d_step
             self.dx = d_step_x
             self.dy = k * self.dx
@@ -438,7 +433,6 @@ class Enemy:
                     self.y += self.dy
                     if abs(self.path[-2][1] - self.y) < self.dy:
                         self.x = self.path[-2][0]
-                        print('ready')
                         self.y = self.path[-2][1]
                         self.path.pop(0)
                         self.new_path = True
@@ -489,6 +483,7 @@ class PathMaker:
         self.point_2 = None
         self.rage = False
         self.distance_to_target = None
+        self.go_to = None
 
     def __field_array(self):
         """
@@ -519,27 +514,27 @@ class PathMaker:
             i += self.square_size_y
         return array_i
 
-    def levenstein(self, go_from, go_to, blocked, collide_p, next_step, graph):
+    def levenstein(self, go_from, go_to_list, blocked, collide_p, next_step, graph):
         """
         Make a path in grath from  start point to the end point
         :param graph:
         :param next_step:
         :param collide_p:
         :param go_from: start point on grath
-        :param go_to: end point on grath
+        :param go_to_list: end point on grath
         :param blocked: point not allow to use
         :return: path in form of list of vertexes (array indexes(i, j))
         """
         if not self.rage:
-            parents = self.__path_from_graph(go_from, go_to, graph, collide_p, blocked)
+            parents = self.__path_from_graph(go_from, go_to_list, graph, collide_p, blocked)
         if self.rage:
             blocked = []
-            parents = self.__path_from_graph(go_from, go_to, graph, collide_p, blocked)
+            parents = self.__path_from_graph(go_from, go_to_list, graph, collide_p, blocked)
 
 
-        self.path = [go_to]
+        self.path = [self.go_to]
 
-        parent = parents[go_to]
+        parent = parents[self.go_to]
 
         while parent != go_from:
             self.path.append(parent)
@@ -553,37 +548,45 @@ class PathMaker:
                 self.path.remove(collide_p)
         return self.path
 
-    def __path_from_graph(self, go_from, go_to, graph, collide_point, blocked):
-        graph_2 = copy.deepcopy(graph)
-
-
-        parents = {}
-        distance = {go_from: 0}
-        queue = deque([go_from])
-
-        if collide_point is not None and collide_point != go_from:
-            cat = collide_point
-            if cat == go_from:
-                print("CATCH YOU")
-            graph_2[go_from] = {cat}
-            graph_2[cat].add(go_from)
+    def __path_from_graph(self, go_from, go_to_list, graph, collide_point, blocked):
+        parents_nearest = None
+        distance_to_closest_target = 400000
+        for go_to in go_to_list:
+            print("go", go_to)
+            graph_2 = copy.deepcopy(graph)
+            parents = {}
+            distance = {go_from: 0}
+            queue = deque([go_from])
+            print(collide_point, "CP", go_from)
+            if collide_point is not None and collide_point != go_from:
+                cat = collide_point
+                if cat == go_from:
+                    print("CATCH YOU")
+                graph_2[go_from] = {cat}
+                graph_2[cat].add(go_from)
             for block in blocked:
                 graph_2[block] = ()
-        while queue:
-            current_vertex = queue.popleft()
-            for vertex in graph_2[current_vertex]:
+            while queue:
+                current_vertex = queue.popleft()
+                for vertex in graph_2[current_vertex]:
 
-                if vertex not in distance:
-                    distance[vertex] = distance[current_vertex] + 1
-                    parents.update({vertex: current_vertex})
-                    queue.append(vertex)
-        self.distance_to_target = distance[go_to]
-        print(distance[go_to])
-        if go_to not in parents:
+                    if vertex not in distance:
+                        distance[vertex] = distance[current_vertex] + 1
+                        parents.update({vertex: current_vertex})
+                        queue.append(vertex)
+            if go_to not in distance:
+                continue
 
+            if distance_to_closest_target >= distance[go_to]:
+                distance_to_closest_target = distance[go_to]
+                self.go_to = go_to
+                self.distance_to_target = distance_to_closest_target
+                parents_nearest = parents
+        if parents_nearest is None:
             self.rage = True
             return
-        return parents
+        else:
+            return parents_nearest
 
 
 my_game = Game()
