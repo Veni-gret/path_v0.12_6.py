@@ -16,10 +16,10 @@ PI = 3.14
 RED = (225, 0, 50)
 FPS = 60
 
-# add health fo cheese
+# mouse eat cheese
 # add icon for damage
 # do damage to mouse
-
+# if enemy hit target and i add block base square become availible
 
 class Game:
     def __init__(self):
@@ -46,8 +46,8 @@ class Game:
         self.battlefield = Battlefield()
         self.graph = self.battlefield.graph_make()
         self.field_set = self.battlefield.field_set()
-        self.normal_square = FieldObject(self.normal_square_image, (50, 50))
-        self.cheese = FieldObject(self.cheese_image, (25, 25))
+        self.normal_square = FieldObject(self.normal_square_image, (50, 50),self.battlefield.surface)
+        self.cheese = FieldObject(self.cheese_image, (25, 25),self.battlefield.surface)
 
         for point in self.field_set:
             self.rect_dict[point] = self.normal_square.get_rect(point)
@@ -60,8 +60,8 @@ class Game:
         self.control_panel_dict_2 = {}
 
         self.control_panel = ControlPanel()
-        self.icon_1 = PanelObject(self.block_image, (50, 50))
-        self.icon_2 = PanelObject(self.cheese_image, (50, 50))
+        self.icon_1 = PanelObject(self.block_image, (50, 50), self.control_panel.surface)
+        self.icon_2 = PanelObject(self.cheese_image, (50, 50), self.control_panel.surface)
         self.icon_1.get_rect((25, 25))
         self.icon_2.get_rect((75, 25))
 
@@ -92,7 +92,7 @@ class Game:
     def run(self):
         play = True
         for square in self.block_point_list:
-            self.added_objects_dict[square] = Block(self.block_image, (35, 35))
+            self.added_objects_dict[square] = Block(self.block_image, (35, 35),self.battlefield.surface)
         start_time = time.time()
         while play:
 
@@ -120,10 +120,11 @@ class Game:
                                     empty = False
                                     break
                             if empty and self.control_panel.selected_item:
-                                self.icon_1.purpose = Block(self.block_image, (35, 35))
-                                self.icon_2.purpose = Target(self.cheese_image, (35, 35))
+                                self.icon_1.purpose = Block(self.block_image, (35, 35),self.battlefield.surface)
+                                self.icon_2.purpose = Target(self.cheese_image, (35, 35), self.battlefield.surface)
                                 self.added_objects_dict_2[key] = self.control_panel.selected_item.purpose
                                 self.added_objects_dict_2[key].get_rect(key)
+                                print(self.added_objects_dict_2[key])
 #                                if self.added_objects_dict_2[key].target_rank == 0:
                                 self.block_point_list.append(key)
 
@@ -148,8 +149,11 @@ class Game:
                 enemy.action()
 
             self.battlefield.draw_objects(self.image_dict)
-            self.battlefield.draw_objects_2(self.added_objects_dict_2)
             self.control_panel.draw_objects_2(self.control_panel_dict_2)
+
+            for obj in self.added_objects_dict_2:
+                self.added_objects_dict_2[obj].make_target()
+
             for enemy in self.enemy_list:
                 enemy.make_enemy(enemy.enemy_pos)
             self.battlefield.draw(self.main_surface)
@@ -162,11 +166,16 @@ class Game:
 
 
 class FieldObject:
-    def __init__(self, image, size):
+
+    def __init__(self, image, size, surface):
+        self.settings = Settings()
         self.size = size
         self.rect = None
         self.square = pg.transform.scale(image, self.size)
         self.position = None
+        self.max_health = 20
+        self.health = 20
+        self.surface = surface
 
     def get_rect(self, center):
 
@@ -178,22 +187,38 @@ class FieldObject:
         place = [self.square, self.get_rect(center)]
         return place
 
+    def make_target(self):
+        self.surface.blit(self.square, self.get_rect(self.position))
+        if self.max_health != self.health:
+            self.health_bar()
+
+    def health_bar(self):
+        pg.draw.rect(self.surface, self.settings.red, (self.position[0]-self.size[0]//2, self.position[1]-self.size[1]+5, 30, 6))
+        pg.draw.rect(self.surface, self.settings.green, (self.position[0]-self.size[0]//2, self.position[1]-self.size[1]+5, (self.health*30//self.max_health), 6))
+
+
 
 class Block(FieldObject):
-    def __init__(self, image, size):
-        super().__init__(image, size)
+    def __init__(self, image, size, surface):
+        super().__init__(image, size, surface)
         self.target_rank = 0
+        self.max_health = 5
+        self.health = 5
 
 
 class Target(FieldObject):
-    def __init__(self, image, size):
-        super().__init__(image, size)
+    def __init__(self, image, size, surface):
+        super().__init__(image, size, surface)
         self.target_rank = 3
+        self.max_health = 20
+        self.health = 20
+        self.surface = surface
+
 
 
 class PanelObject(FieldObject):
-    def __init__(self, image, size):
-        super().__init__(image, size)
+    def __init__(self, image, size, surface):
+        super().__init__(image, size, surface)
         self.selected = False
         self.purpose = None
 
@@ -444,7 +469,7 @@ class Enemy:
 
     def health_bar(self):
         pg.draw.rect(self.surface, self.settings.red, (self.x-self.r-5, self.y-self.r-10, 30, 6))
-        pg.draw.rect(self.surface, self.settings.green, (self.x-self.r-5, self.y-self.r-10, (self.health/self.max_health*30), 6))
+        pg.draw.rect(self.surface, self.settings.green, (self.x-self.r-5, self.y-self.r-10, (self.health*30//self.max_health), 6))
 
     def hit(self):
         if 60 < self.attack_step <= 120:
