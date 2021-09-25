@@ -1,6 +1,7 @@
 import pygame as pg
 from collections import deque
 import time
+import copy
 from settings import Settings
 from math import hypot as path_len
 
@@ -487,6 +488,7 @@ class PathMaker:
         self.path = []
         self.point_2 = None
         self.rage = False
+        self.distance_to_target = None
 
     def __field_array(self):
         """
@@ -552,6 +554,9 @@ class PathMaker:
         return self.path
 
     def __path_from_graph(self, go_from, go_to, graph, collide_point, blocked):
+        graph_2 = copy.deepcopy(graph)
+
+
         parents = {}
         distance = {go_from: 0}
         queue = deque([go_from])
@@ -560,19 +565,19 @@ class PathMaker:
             cat = collide_point
             if cat == go_from:
                 print("CATCH YOU")
-            graph[go_from] = {cat}
-            graph[cat].add(go_from)
+            graph_2[go_from] = {cat}
+            graph_2[cat].add(go_from)
             for block in blocked:
-                graph[block] = ()
+                graph_2[block] = ()
         while queue:
             current_vertex = queue.popleft()
-            for vertex in graph[current_vertex]:
+            for vertex in graph_2[current_vertex]:
 
                 if vertex not in distance:
                     distance[vertex] = distance[current_vertex] + 1
                     parents.update({vertex: current_vertex})
                     queue.append(vertex)
-
+        self.distance_to_target = distance[go_to]
         print(distance[go_to])
         if go_to not in parents:
 
