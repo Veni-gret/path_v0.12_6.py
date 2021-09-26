@@ -16,10 +16,9 @@ PI = 3.14
 RED = (225, 0, 50)
 FPS = 60
 
-# mouse eat cheese
+# mouse right reaction for "killed" cheese
 # add icon for damage
 # do damage to mouse
-# if enemy hit target and i add block base square become availible MASS refactor
 
 class Game:
     def __init__(self):
@@ -152,15 +151,29 @@ class Game:
                 self.path_change = True
             for enemy in self.enemy_list:
                 enemy.action()
+                if enemy.target and enemy.target.position in self.added_objects_dict_2 and enemy.target.health <= 0:
+
+                    self.added_objects_dict_2.pop(enemy.target.position)
+                    for enemy_2 in self.enemy_list:
+                        enemy_2.path = []
+                        enemy_2.new_path = True
+                        enemy_2.target_list = []
+                        enemy_2.ready_for_attack = False
+                    self.path_change = False
+                    break
+
 
             self.battlefield.draw_objects(self.image_dict)
-            self.control_panel.draw_objects_2(self.control_panel_dict_2)
+
+            for icon in self.control_panel_dict_2:
+                self.control_panel_dict_2[icon].make_icon()
 
             for obj in self.added_objects_dict_2:
                 self.added_objects_dict_2[obj].make_target()
 
             for enemy in self.enemy_list:
                 enemy.make_enemy(enemy.enemy_pos)
+
             self.battlefield.draw(self.main_surface)
             self.control_panel.draw(self.main_surface)
 
@@ -202,7 +215,6 @@ class FieldObject:
         pg.draw.rect(self.surface, self.settings.green, (self.position[0]-self.size[0]//2, self.position[1]-self.size[1]+5, (self.health*30//self.max_health), 6))
 
 
-
 class Block(FieldObject):
     def __init__(self, image, size, surface):
         super().__init__(image, size, surface)
@@ -220,12 +232,14 @@ class Target(FieldObject):
         self.surface = surface
 
 
-
 class PanelObject(FieldObject):
     def __init__(self, image, size, surface):
         super().__init__(image, size, surface)
         self.selected = False
         self.purpose = None
+
+    def make_icon(self):
+        self.surface.blit(self.square, self.get_rect(self.position))
 
 
 class ControlPanel:
@@ -371,11 +385,8 @@ class Enemy:
         self.dy = 0
         self.surface = surface
         self.enemy_pos = (self.x, self.y)
-        self.step = 0
         self.collide_point = None
-        self.rat_path = PathMaker()
         self.next_step = None
-        self.enemy_rage = None
         self.path = None
         self.max_health = health
         self.health = 25
@@ -388,6 +399,10 @@ class Enemy:
         self.target = None
         self.rage = False
         self.go_to = None
+        self.point_2 = None
+        self.damage = 2
+        self.hit = False
+
     def start_point(self, x, y):
         self.x = x
         self.y = y
@@ -395,19 +410,17 @@ class Enemy:
         return self.enemy_pos
 
     def make_enemy(self, pos):
-        self.enemy_rage = self.rat_path.rage
-        if not self.enemy_rage:
-            pg.draw.circle(self.surface, GREEN, (pos[0], pos[1]), self.r)
+        if not self.rage:
+            pg.draw.circle(self.surface, GREEN, (self.x, self.y), self.r)
 
             self.health_bar()
         else:
-            pg.draw.circle(self.surface, RED, (pos[0], pos[1]), self.r*2)
+            pg.draw.circle(self.surface, RED, (self.x, self.y), self.r*2)
 
     def make_a_path_2(self, blocked, graph):
         if not self.target_list:
-            path = (self.x, self.y)
-            self.path = path
-            return path
+            self.path = (self.x, self.y)
+            return self.path
         else:
             print(self.target_list)
             if not self.rage:
@@ -472,30 +485,19 @@ class Enemy:
         else:
             return parents_nearest
 
-    def give_target(self):
-        return self.target
-
-
-    def make_a_path(self, blocked, graph):
-        if not self.target_list:
-            path = (self.x, self.y)
-            self.path = path
-            return path
-        else:
-            path = self.rat_path.levenstein(self.enemy_pos, self.target_list, blocked, self.collide_point, self.next_step, graph)
-            self.path = path
-            return path
-
     def action(self):
+        print(self.target_list)
         if not self.target_list:
             self.enemy_pos = (self.x, self.y)
         else:
-            if self.ready_for_attack:
-                self.hit()
-
             if self.new_path:
                 self.step_calk()
-            self.movement()
+            if self.ready_for_attack:
+                self.attack()
+                if self.hit:
+                    self.target.health -= self.damage
+            else:
+                self.movement()
 
     def step_calk(self):
         move_from_x = self.path[-1][0]
@@ -521,7 +523,6 @@ class Enemy:
         if len(self.path) <= 2:
             self.enemy_pos = (self.x, self.y)
             self.ready_for_attack = True
-            print(self.target)
         else:
             if self.x != self.path[-2][0]:
                 if self.path[-2][0] != self.path[-1][0]:
@@ -551,123 +552,28 @@ class Enemy:
         pg.draw.rect(self.surface, self.settings.red, (self.x-self.r-5, self.y-self.r-10, 30, 6))
         pg.draw.rect(self.surface, self.settings.green, (self.x-self.r-5, self.y-self.r-10, (self.health*30//self.max_health), 6))
 
-    def hit(self):
+    def attack(self):
         if 60 < self.attack_step <= 120:
+            self.hit = False
             self.x += self.dx
             self.y += self.dy
             self.attack_step -= 1
-        elif 0 < self.attack_step <= 60:
+        elif self.attack_step == 60:
+            self.hit = True
+            self.attack_step -= 1
+
+        elif 0 < self.attack_step < 60:
+            self.hit = False
             self.x -= self.dx
             self.y -= self.dy
             self.attack_step -= 1
         else:
+            self.hit = False
             self.x = self.path[-1][0]
             self.y = self.path[-1][1]
             self.attack_step = 120
 
 
-class PathMaker:
-    """
-    Make a path in grath( array (X;Y))
-    """
-
-    def __init__(self, rad=1):
-        self.settings = Settings()
-        self.go_to = (0, 0)
-        self.go_from = (0, 0)
-        self.number_of_squares = (self.settings.square_number_x, self.settings.square_number_y)
-        self.field_width = self.settings.game_field_x
-        self.field_height = self.settings.game_field_y
-        self.rad = rad
-        self.grath = {}
-        self.in_the_square = False
-        self.square_size_x = self.field_width / self.number_of_squares[0]  # in the short line
-        self.square_size_y = self.field_height / self.number_of_squares[1]
-        self.path = []
-        self.point_2 = None
-        self.rage = False
-        self.distance_to_target = None
-        self.go_to = None
-        self.target = None
-
-
-    def levenstein(self, go_from, target_list, blocked, collide_p, next_step, graph):
-        """
-        Make a path in grath from  start point to the end point
-        :param target_list:
-        :param graph:
-        :param next_step:
-        :param collide_p:
-        :param go_from: start point on grath
-        :param blocked: point not allow to use
-        :return: path in form of list of vertexes (array indexes(i, j))
-        """
-
-        print(target_list)
-        if not self.rage:
-            parents = self.__path_from_graph(go_from, target_list, graph, collide_p, blocked)
-        if self.rage:
-            blocked = []
-            parents = self.__path_from_graph(go_from, target_list, graph, collide_p, blocked)
-
-
-        self.path = [self.go_to]
-
-        parent = parents[self.go_to]
-
-        while parent != go_from:
-            self.path.append(parent)
-            parent = parents[parent]
-        self.path.append(go_from)
-        if collide_p is not None:
-            self.point_2 = next_step
-            if self.point_2 in self.path and (path_len((go_from[0]-self.point_2[0]), (go_from[1]-self.point_2[1])) <
-                                              path_len((collide_p[0] - self.point_2[0]), (collide_p[1] - self.point_2[1]))
-                                              ):
-                self.path.remove(collide_p)
-        return self.path
-
-    def __path_from_graph(self, go_from, target_list, graph, collide_point, blocked):
-        parents_nearest = None
-        distance_to_closest_target = 400000
-        for target in target_list:
-            graph_2 = copy.deepcopy(graph)
-            parents = {}
-            distance = {go_from: 0}
-            queue = deque([go_from])
-            if collide_point is not None and collide_point != go_from:
-                cat = collide_point
-                if cat == go_from:
-                    print("CATCH YOU")
-                graph_2[go_from] = {cat}
-                graph_2[cat].add(go_from)
-            for block in blocked:
-                graph_2[block] = ()
-            while queue:
-                current_vertex = queue.popleft()
-                for vertex in graph_2[current_vertex]:
-
-                    if vertex not in distance:
-                        distance[vertex] = distance[current_vertex] + 1
-                        parents.update({vertex: current_vertex})
-                        queue.append(vertex)
-            if target.position not in distance:
-                continue
-
-            if distance_to_closest_target >= distance[target.position]:
-                distance_to_closest_target = distance[target.position]
-                self.go_to = target.position
-                self.distance_to_target = distance_to_closest_target
-                self.target = target
-                parents_nearest = parents
-        if parents_nearest is None:
-            self.rage = True
-            return
-        else:
-            return parents_nearest
-
-    def give_target(self):
-        return self.target
 
 my_game = Game()
 
