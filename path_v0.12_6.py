@@ -141,7 +141,7 @@ class Game:
                             for enemy in self.enemy_list:
                                 enemy.path = []
                                 enemy.new_path = True
-                                enemy.target_list = self.enemy_targets
+                                enemy.target_dict = self.added_objects_dict_2
                             self.path_change = False
 
             if not self.path_change:
@@ -151,16 +151,7 @@ class Game:
                 self.path_change = True
             for enemy in self.enemy_list:
                 enemy.action()
-                if enemy.target and enemy.target.position in self.added_objects_dict_2 and enemy.target.health <= 0:
 
-                    self.added_objects_dict_2.pop(enemy.target.position)
-                    for enemy_2 in self.enemy_list:
-                        enemy_2.path = []
-                        enemy_2.new_path = True
-                        enemy_2.target_list = []
-                        enemy_2.ready_for_attack = False
-                    self.path_change = False
-                    break
 
 
             self.battlefield.draw_objects(self.image_dict)
@@ -396,12 +387,13 @@ class Enemy:
         self.ready_for_attack = False
         self.attack_step = 120
         self.target_list = []
+        self.target_dict = {}
         self.target = None
         self.rage = False
         self.go_to = None
         self.point_2 = None
         self.damage = 2
-        self.hit = False
+        self.killer = False
 
     def start_point(self, x, y):
         self.x = x
@@ -418,16 +410,16 @@ class Enemy:
             pg.draw.circle(self.surface, RED, (self.x, self.y), self.r*2)
 
     def make_a_path_2(self, blocked, graph):
-        if not self.target_list:
+        if not self.target_dict:
             self.path = (self.x, self.y)
             return self.path
         else:
-            print(self.target_list)
+            print(self.target_dict)
             if not self.rage:
-                parents = self.__path_from_graph(self.enemy_pos, self.target_list, graph, self.collide_point, blocked)
+                parents = self.__path_from_graph(self.enemy_pos, graph, self.collide_point, blocked)
             if self.rage:
                 blocked = []
-                parents = self.__path_from_graph(self.enemy_pos, self.target_list, graph, self.collide_point, blocked)
+                parents = self.__path_from_graph(self.enemy_pos, graph, self.collide_point, blocked)
 
             self.path = [self.go_to]
 
@@ -446,10 +438,11 @@ class Enemy:
                     self.path.remove(self.collide_point)
             return self.path
 
-    def __path_from_graph(self, go_from, target_list, graph, collide_point, blocked):
+    def __path_from_graph(self, go_from, graph, collide_point, blocked):
         parents_nearest = None
         distance_to_closest_target = 400000
-        for target in target_list:
+        for target in self.target_dict:
+            print(target, "gggg")
             graph_2 = copy.deepcopy(graph)
             parents = {}
             distance = {go_from: 0}
@@ -470,14 +463,14 @@ class Enemy:
                         distance[vertex] = distance[current_vertex] + 1
                         parents.update({vertex: current_vertex})
                         queue.append(vertex)
-            if target.position not in distance:
+            if target not in distance:
                 continue
 
-            if distance_to_closest_target >= distance[target.position]:
-                distance_to_closest_target = distance[target.position]
-                self.go_to = target.position
+            if distance_to_closest_target >= distance[target]:
+                distance_to_closest_target = distance[target]
+                self.go_to = target
                 self.distance_to_target = distance_to_closest_target
-                self.target = target
+                self.target = self.target_dict[target]
                 parents_nearest = parents
         if parents_nearest is None:
             self.rage = True
@@ -486,16 +479,13 @@ class Enemy:
             return parents_nearest
 
     def action(self):
-        print(self.target_list)
-        if not self.target_list:
+        if not self.target_dict:
             self.enemy_pos = (self.x, self.y)
         else:
             if self.new_path:
                 self.step_calk()
             if self.ready_for_attack:
-                self.attack()
-                if self.hit:
-                    self.target.health -= self.damage
+                self.attack(self.target)
             else:
                 self.movement()
 
@@ -552,26 +542,30 @@ class Enemy:
         pg.draw.rect(self.surface, self.settings.red, (self.x-self.r-5, self.y-self.r-10, 30, 6))
         pg.draw.rect(self.surface, self.settings.green, (self.x-self.r-5, self.y-self.r-10, (self.health*30//self.max_health), 6))
 
-    def attack(self):
+    def attack(self, target_list):
         if 60 < self.attack_step <= 120:
-            self.hit = False
             self.x += self.dx
             self.y += self.dy
             self.attack_step -= 1
         elif self.attack_step == 60:
-            self.hit = True
+            self.target.health -= self.damage
+            if self.target.health <= 0:
+                print("cat")
+                self.killer = True
+                print(self.killer)
             self.attack_step -= 1
-
         elif 0 < self.attack_step < 60:
-            self.hit = False
             self.x -= self.dx
             self.y -= self.dy
             self.attack_step -= 1
         else:
-            self.hit = False
             self.x = self.path[-1][0]
             self.y = self.path[-1][1]
             self.attack_step = 120
+            if self.killer:
+                self.target_dict.pop(self.go_to)
+
+                self.killer = False
 
 
 
