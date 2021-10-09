@@ -37,7 +37,6 @@ class Game:
         self.normal_square_image = pg.image.load('Grass_finish.bmp')
         self.cheese_image = pg.image.load('cheese.png')
         self.enemy_image = pg.image.load('Icons_33.png')
-        self.frame = pg.image.load('Chain_3.png')
         self.damage = pg.image.load('Icons_09.png')
         self.ring = pg.image.load('Ring_2.png')
 
@@ -70,12 +69,10 @@ class Game:
         self.icon_2 = PanelObject(self.cheese_image, (45, 45), self.control_panel.surface)
         self.icon_3 = PanelObject(self.damage, (50, 50), self.control_panel.surface)
 
-        self.icon_1.get_rect_2((25, 25))
-        self.icon_2.get_rect_2((75, 25))
+#        self.icon_1.get_rect_2((25, 25))
+#        self.icon_2.get_rect_2((75, 25))
         self.icon_3.get_rect_2((125, 25))
 
-        self.selected_object_frame = Selected_object(self.frame, (400, 400), self.control_panel.surface)
-        self.selected_object_frame.get_rect_2((25, 75))
         self.control_panel_dict_2[self.icon_1.position] = self.icon_1
         self.control_panel_dict_2[self.icon_2.position] = self.icon_2
         self.control_panel_dict_2[self.icon_3.position] = self.icon_3
@@ -103,7 +100,13 @@ class Game:
         self.enemy_targets = []
 
         self.clicker = Clicker(self.battlefield, self.control_panel, self.ring)
-        self.clicker.add_ring_object_list([self.icon_2, self.icon_2, self.icon_2, self.icon_2, self.icon_2])
+
+        self.icon_5 = PanelObject(self.block_image, (45, 45), self.control_panel.surface)
+        self.icon_4 = PanelObject(self.cheese_image, (45, 45), self.control_panel.surface)
+        self.icon_6 = PanelObject(self.damage, (45, 45), self.control_panel.surface)
+        self.icon_7 = PanelObject(self.cheese_image, (45, 45), self.control_panel.surface)
+        self.icon_8 = PanelObject(self.damage, (45, 45), self.control_panel.surface)
+        self.clicker.add_ring_object_list([self.icon_4, self.icon_5, self.icon_6, self.icon_7, self.icon_8])
 
     def run(self):
         play = True
@@ -114,37 +117,40 @@ class Game:
                 if event.type == pg.QUIT:
                     play = False
                 if event.type == pg.MOUSEBUTTONUP and time.time()-start_time > 0.2:
-                    self.clicker.click_action(event.pos, self.enemy_list, self.added_objects_dict_2)
-                    # control_panel_event
-                    if self.control_panel_dict_2[125, 25].rect.collidepoint(
-                            (event.pos[0], event.pos[1] - self.game_field_y)) and self.clicker.selected_object:
-                        self.clicker.selected_object.health -= 5
-                    for key in self.control_panel_dict_2:
+                    if self.clicker.ring_work:
+                        self.icon_4.purpose = Target(self.cheese_image, (35, 35), self.battlefield.surface)
 
-                        if self.control_panel_dict_2[key].rect.collidepoint(
-                                                                    (event.pos[0], event.pos[1]-self.game_field_y)):
-                            self.control_panel.selected_item = self.control_panel_dict_2[key]
+                        self.icon_5.purpose = Block(self.block_image, (35, 35), self.battlefield.surface)
 
-                    # battlefiel_event
+                        selected_icon = self.clicker.chose_ring_icon(event.pos)
+                        if selected_icon:
+                            selected_icon.selected = True
+                            print(selected_icon.purpose)
+                            self.added_objects_dict_2[self.clicker.point] = selected_icon.purpose
+                            self.added_objects_dict_2[self.clicker.point].get_rect_2(self.clicker.point)
+                            for enemy in self.enemy_list:
+                                enemy.click = True
+                    else:
+                        self.clicker.click_action(event.pos, self.enemy_list, self.added_objects_dict_2)
+                        # control_panel_event
+                        if self.control_panel_dict_2[125, 25].rect.collidepoint(
+                                (event.pos[0], event.pos[1] - self.game_field_y)) and self.clicker.selected_object:
+                            self.clicker.selected_object.health -= 5
+#                        for key in self.control_panel_dict_2:
 
-                    for key in self.image_dict:
-                        for enemy in self.enemy_list:
-                            if self.image_dict[key].collidepoint(enemy.enemy_pos):
-                                enemy.collide_point = key
+#                            if self.control_panel_dict_2[key].rect.collidepoint(
+#                                                                        (event.pos[0], event.pos[1]-self.game_field_y)):
+#                                self.control_panel.selected_item = self.control_panel_dict_2[key]
 
-                        if self.image_dict[key].collidepoint(event.pos):
+                        # battlefiel_event
 
-                            # check empty square or not
-                            empty = self.empty_square(key, self.enemy_list, self.added_objects_dict_2)
+                        for key in self.image_dict:
+                            for enemy in self.enemy_list:
+                                if self.image_dict[key].collidepoint(enemy.enemy_pos):
+                                    enemy.collide_point = key
 
-                            if empty and self.control_panel.selected_item:
-                                self.icon_1.purpose = Block(self.block_image, (35, 35), self.battlefield.surface)
-                                self.icon_2.purpose = Target(self.cheese_image, (35, 35), self.battlefield.surface)
-                                self.added_objects_dict_2[key] = self.control_panel.selected_item.purpose
-                                self.added_objects_dict_2[key].get_rect_2(key)
-                                for enemy in self.enemy_list:
-                                    enemy.click = True
-                            start_time = time.time()
+
+                                start_time = time.time()
 
             for enemy in self.enemy_list:
                 if enemy.health <= 0:
@@ -158,9 +164,9 @@ class Game:
 
             self.drawer.from_set(self.battlefield.surface, self.field_set, self.normal_square_obj)
 
-            self.drawer.from_dict(self.control_panel.surface, self.control_panel_dict_2)
+#            self.drawer.from_dict(self.control_panel.surface, self.control_panel_dict_2)
             if self.clicker.ring_work:
-                self.clicker.action_selection()
+                self.clicker.draw_ring()
 
             self.drawer.from_dict(self.battlefield.surface, self.added_objects_dict_2)
 
@@ -170,7 +176,6 @@ class Game:
             if self.clicker.selected_object is not None:
                 self.control_panel.make_selected_object(self.clicker.selected_object)
 
-            self.control_panel.make_selected_object(self.selected_object_frame)
 
             self.drawer.one_surface(self.main_surface, self.battlefield.surface, self.battlefield.rect)
 
@@ -684,11 +689,11 @@ class Clicker:
         self.ring_work = False
         self.ring_object_list = []
         self.point = None
+        self.icon_rect_list = []
+        self.icon_ring_point_dict = {}
 
     def add_ring_object_list(self, ring_object_list):
         self.ring_object_list = ring_object_list
-
-
 
     def click_action(self, mouse_pos, enemy_list, obj_list):
         self.mouse_pose = mouse_pos
@@ -711,7 +716,7 @@ class Clicker:
                 if self.empty_square(point):
                     self.ring_work = True
                     self.point = point
-                    print("cat")
+                    self.action_selection()
 
     def empty_square(self, point):
         empty = True
@@ -726,17 +731,35 @@ class Clicker:
         return empty
 
     def action_selection(self):
-        self.ring.get_rect_2(self.point)
-        self.drawer.one_surface(self.battlefield.surface, self.ring.square, self.ring.rect)
+        self.icon_ring_point_dict.clear()
         angle = 0
         d_angle = 2*pi/5
+        self.icon_rect_list = []
         for icon in self.ring_object_list:
             y = cos(angle)*65
             x = sin(angle)*65
-            icon.get_rect_2((self.ring.size[0]/2+x, self.ring.size[1]/2-y))
-            self.drawer.one_surface(self.ring.square, icon.square, icon.rect)
+            self.icon_ring_point_dict[(self.ring.size[0]/2+x, self.ring.size[1]/2-y)] = icon
+            self.icon_ring_point_dict[(self.ring.size[0]/2+x, self.ring.size[1]/2-y)].get_rect_2((self.ring.size[0]/2+x, self.ring.size[1]/2-y))
+
             angle += d_angle
+
         self.ring_work = True
+
+    def draw_ring(self):
+        self.ring.get_rect_2(self.point)
+        self.drawer.one_surface(self.battlefield.surface, self.ring.square, self.ring.rect)
+        for key in self.icon_ring_point_dict:
+            self.drawer.one_surface(self.ring.square, self.icon_ring_point_dict[key].square, self.icon_ring_point_dict[key].rect)
+
+    def chose_ring_icon(self, mouse_pose):
+        selected = None
+        for key in self.icon_ring_point_dict:
+
+            if self.icon_ring_point_dict[key].rect.collidepoint((mouse_pose[0]-self.point[0]+100,mouse_pose[1]-self.point[1]+100)):
+                selected = self.icon_ring_point_dict[key]
+        self.ring_work = False
+        return selected
+
 
 my_game = Game()
 
