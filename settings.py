@@ -21,3 +21,9 @@ class Settings:
 
 
         self.fps = 60
+
+# controll panel positions
+        self.enemy_icon_size = (30, 30)
+        self.enemy_icon_position = (41, 40)
+        self.enemy_panel_health_size = (88, 50)
+        self.enemy_panel_health_position_centre = (110, 40)
