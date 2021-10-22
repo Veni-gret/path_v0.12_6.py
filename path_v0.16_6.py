@@ -4,19 +4,8 @@ import time
 import copy
 from settings import Settings
 from math import hypot as path_len
-from math import sin, cos, pi
+from math import sin, cos, pi, radians
 
-
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GRAY = (125, 125, 125)
-LIGHT_BLUE = (64, 128, 255)
-GREEN = (0, 200, 64)
-YELLOW = (225, 225, 0)
-PINK = (230, 50, 230)
-PI = 3.14
-RED = (225, 0, 50)
-FPS = 60
 
 # mouse right reaction for "killed" cheese DONE DONE DONE
 # make enemy with a icon  DONE
@@ -26,8 +15,8 @@ FPS = 60
 # do damage to mouse Done
 # remove enemy from selected after kill Done
 # ring DONE
-
-# Make control panellllll
+# stop to plasing rock then enemy on the spot
+# Make control panellllll started
 
 
 class Game:
@@ -68,7 +57,7 @@ class Game:
 
 # Control panel
         self.control_panel_dict_2 = {}
-
+        self.control_panel_spots_dict = {}
         self.control_panel = ControlPanel()
         self.panel = PanelObject(self.panel_image, (self.settings.control_panel_width,
                                                     self.settings.control_panel_height), self.control_panel.surface)
@@ -128,6 +117,24 @@ class Game:
         self.icon_7 = PanelObject(self.cheese_image, (45, 45), self.control_panel.surface)
         self.icon_8 = PanelObject(self.damage, (45, 45), self.control_panel.surface)
         self.clicker.add_ring_object_list([self.icon_4, self.icon_5, self.icon_6, self.icon_7, self.icon_8])
+
+        first_x = 215
+        for spot in range(1, 11):
+            self.control_panel_spots_dict[spot] = [ControlPanelSpot(self.control_panel.surface, (30, 30), (first_x, 37))]
+            first_x += 41
+
+        self.wol_holly_fire = AbilitySkill("Word of light: Holly Fire", 1, 5, 'Icons_09.png', 10)
+
+        self.wol_holly_fire.set_description("""Make instance damage to target 
+                                      and burn it for time""")
+
+        self.wol_holly_fire.make_effect_list(Ability("health", [-15, -30, -60, -120, -240], "instance"),
+                                    Ability("speed", [-15, -30, -60, -120, -240], 5))
+
+        self.control_panel_spots_dict[1][0].set_ability(self.wol_holly_fire)
+        self.control_panel_spots_dict[2][0].set_ability(self.wol_holly_fire)
+
+
 
     def run(self):
         play = True
@@ -192,6 +199,10 @@ class Game:
             for enemy in self.enemy_list:
                 enemy.make_target()
 
+            for spot in self.control_panel_spots_dict:
+                if self.control_panel_spots_dict[spot][0].ability:
+                    self.control_panel_spots_dict[spot][0].countdown_go()
+
             if self.clicker.selected_object is not None:
                 self.control_panel.make_selected_object(self.clicker.selected_object)
 
@@ -202,7 +213,7 @@ class Game:
             self.drawer.one_surface(self.main_surface, self.control_panel.surface, self.control_panel.rect)
             pg.display.update()
 
-            self.clock.tick(FPS)
+            self.clock.tick(self.settings.fps)
         pg.quit()
 
     def empty_square(self, square, enemy_list, obj_list):
@@ -480,7 +491,7 @@ class Enemy:
         self.killer = False
         self.click = False
         self.in_attack = False
-
+        self.speed = 50
         self.rect = None
         self.square = pg.transform.scale(image, self.size)
 
@@ -620,7 +631,7 @@ class Enemy:
             move_to_x = self.path[-2][0]
             move_to_y = self.path[-2][1]
         len_path = path_len((move_to_x - move_from_x), (move_to_y - move_from_y))
-        d_step = len_path / 0.5
+        d_step = len_path / (self.speed*0.01)
         if move_to_x != move_from_x:
             k = (move_to_y - move_from_y) / (move_to_x - move_from_x)
             d_step_x = (move_to_x - move_from_x) / d_step
@@ -782,6 +793,123 @@ class Clicker:
                 selected = self.icon_ring_point_dict[key]
         self.ring_work = False
         return selected
+
+class ControlPanelSpot:
+    def __init__(self, surface, size_c, position):
+        self.settings = Settings()
+        self.surface = surface
+        self.global_countdown = 1
+        self.global_countdown_active = False
+        self.ability = None
+        self.countdown = 0
+        self.icon_rect = None
+        self.icon_size = size_c
+        self.icon = None
+        self.size = size_c
+        self.total_points_number = 36
+        self.d_angle = 360 // self.total_points_number
+        self.d_countdown = 0
+        self.current_countdown = 0
+        self.position = position
+        self.start_time = 0
+        self.points_number = 0
+        self.spot_surface = pg.Surface(size_c)
+        self.spot_surface.set_colorkey(self.settings.red)
+        self.spot_surface.set_alpha(150)
+        self.spot_surface_rect = self.spot_surface.get_rect(center=position)
+        self.clicked = False
+        self.countdown_calk = False
+
+    def set_ability(self, ability_s):
+        self.icon = pg.transform.scale(ability_s.image, self.icon_size)
+        self.icon_rect = self.icon.get_rect(center=self.position)
+        self.ability = ability_s
+
+    def countdown_go(self):
+        if self.ability:
+            self.surface.blit(self.icon, self.icon_rect)
+            self.spot_surface.fill(self.settings.black)
+            if self.clicked or self.global_countdown_active:
+                if self.clicked:
+                    self.countdown = self.ability.countdown_time
+                else:
+                    self.countdown = self.global_countdown
+
+                if not self.countdown_calk:
+                    self.d_countdown = self.countdown / self.total_points_number
+                    self.current_countdown = self.d_countdown
+                    self.countdown_calk = True
+
+                point_list = [[self.size[0] / 2, self.size[1] / 2], [self.size[0] / 2, 0]]
+                angle = 0
+                i = 1
+                while i != self.points_number + 1:
+                    x = sin(radians(angle)) * self.size[0] / 2
+                    y = cos(radians(angle)) * self.size[1] / 2
+                    point_list.append([self.size[0] / 2 + x, self.size[1] / 2 - y])
+                    angle += self.d_angle
+                    i += 1
+                point_list.append([self.size[0] / 2, self.size[1] / 2])
+
+                pg.draw.polygon(self.spot_surface, self.settings.red, point_list)
+                self.surface.blit(self.spot_surface, self.spot_surface_rect)
+
+                if time.time() - self.start_time >= self.current_countdown:
+                    self.current_countdown += self.d_countdown
+
+                    self.points_number += 1
+                    if self.points_number == self.total_points_number:
+                        self.points_number = 0
+                        self.start_time = 0
+                        self.current_countdown = 0
+                        self.clicked = False
+                        self.countdown_calk = False
+                        self.global_countdown_active = False
+        else:
+            return
+
+class Ability:
+    def __init__(self, ability_type, quantity, affected_time):
+        self.ability_type = ability_type
+        self.quantity = quantity
+        self.affected_time = affected_time
+
+class AbilitySkill:
+    def __init__(self, name, lvl, max_lvl, image_icon, countdown_time):
+        self.name = name
+        self.lvl = lvl
+        self.max_lvl = max_lvl
+        self.countdown_time = countdown_time
+        self.__description = None
+        self.effect_list = []
+        self.icon = pg.image.load(image_icon)
+        self.image = pg.image.load(image_icon)
+        self.ability_dict = {}
+
+    def set_description(self, desc):
+        self.__description = desc
+
+    def make_effect_list(self, *args):
+        for arg in args:
+            self.effect_list.append(arg)
+
+    def ability_summary(self):
+        self.ability_dict[self.name] = []
+        for effect in self.effect_list:
+            self.ability_dict[self.name].append(AbilityTrans(self.icon, effect.ability_type,
+                                                             effect.quantity[self.lvl-1], effect.affected_time))
+        return self.ability_dict
+
+
+class AbilityTrans:
+    def __init__(self, icon, ability_type, quantity, affected_time):
+        self.icon = icon
+        self.ability_type = ability_type
+        self.quantity = quantity
+        self.affected_time = affected_time
+        self.affected_time_counter = affected_time
+        self.start_time = None
+        self.cat = 0
 
 
 my_game = Game()
