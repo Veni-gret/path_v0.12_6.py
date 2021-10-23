@@ -17,7 +17,7 @@ from math import sin, cos, pi, radians
 # ring DONE
 # stop to plasing rock then enemy on the spot
 # Make control panellllll started
-
+# make spot wihte
 
 class Game:
     def __init__(self):
@@ -75,17 +75,9 @@ class Game:
         self.mob_mask.get_rect_2(self.settings.enemy_icon_position)
 
 
-        self.icon_1 = PanelObject(self.block_image, (45, 45), self.control_panel.surface)
-        self.icon_2 = PanelObject(self.cheese_image, (45, 45), self.control_panel.surface)
-        self.icon_3 = PanelObject(self.damage, (30, 30), self.control_panel.surface)
-
-#        self.icon_1.get_rect_2((25, 25))
-#        self.icon_2.get_rect_2((75, 25))
-        self.icon_3.get_rect_2((215, 37))
 
         self.control_panel_dict_2[self.mob_mask.position] = self.mob_mask
         self.control_panel_dict_2[self.hp_mask.position] = self.hp_mask
-        self.control_panel_dict_2[self.icon_3.position] = self.icon_3
 
 
 #       self.control_panel_width = 800
@@ -144,7 +136,7 @@ class Game:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     play = False
-                if event.type == pg.MOUSEBUTTONUP and time.time()-start_time > 0.2:
+                if event.type == pg.MOUSEBUTTONUP and event.button == 1:
                     if self.clicker.ring_work:
                         self.icon_4.purpose = Target(self.cheese_image, (35, 35), self.battlefield.surface)
 
@@ -159,25 +151,16 @@ class Game:
                             for enemy in self.enemy_list:
                                 enemy.click = True
                     else:
-                        self.clicker.click_action(event.pos, self.enemy_list, self.added_objects_dict_2)
+                        self.clicker.click_action(event.pos, self.enemy_list, self.added_objects_dict_2,
+                                                  self.control_panel_spots_dict)
                         # control_panel_event
-                        if self.control_panel_dict_2[215, 37].rect.collidepoint(
-                                (event.pos[0], event.pos[1] - self.game_field_y)) and self.clicker.selected_object:
-                            self.clicker.selected_object.health -= 5
-                        for key in self.control_panel_dict_2:
-
-                            if self.control_panel_dict_2[key].rect.collidepoint(
-                                                                      (event.pos[0], event.pos[1]-self.game_field_y)):
-                                self.control_panel.selected_item = self.control_panel_dict_2[key]
-
-                        # battlefiel_event
+# battlefiel_event
 
                         for key in self.image_dict:
                             for enemy in self.enemy_list:
                                 if self.image_dict[key].collidepoint(enemy.enemy_pos):
                                     enemy.collide_point = key
 
-                                start_time = time.time()
 
             for enemy in self.enemy_list:
                 if enemy.health <= 0:
@@ -198,6 +181,8 @@ class Game:
 
             for enemy in self.enemy_list:
                 enemy.make_target()
+                enemy.affected_ability()
+
 
             for spot in self.control_panel_spots_dict:
                 if self.control_panel_spots_dict[spot][0].ability:
@@ -212,6 +197,9 @@ class Game:
 
             self.drawer.one_surface(self.main_surface, self.control_panel.surface, self.control_panel.rect)
             pg.display.update()
+            if self.clicker.selected_object:
+                print(self.clicker.selected_object.affected_ability_dict)
+                print(self.clicker.selected_object.health)
 
             self.clock.tick(self.settings.fps)
         pg.quit()
@@ -494,6 +482,8 @@ class Enemy:
         self.speed = 50
         self.rect = None
         self.square = pg.transform.scale(image, self.size)
+        self.affected_ability_dict = {}
+
 
     def target_priority(self):
         max_target_rank = self.target_priority_min
@@ -705,6 +695,38 @@ class Enemy:
                 self.killer = False
 
 
+    def set_affected_ability(self, ability):
+        self.affected_ability_dict.update(ability)
+
+    def affected_ability(self):
+        for ability in self.affected_ability_dict:
+            for effect in self.affected_ability_dict[ability]:
+                if effect:
+                    if effect.affected_time == "instance":
+                        self.health += effect.quantity
+
+                        self.affected_ability_dict[ability].remove(effect)
+
+                    elif effect.start_time is None:
+                        effect.start_time = time.time()
+                        if effect.ability_type == "speed":
+                            self.speed += effect.quantity
+
+                    elif time.time()-effect.start_time >= 1:
+                        effect.start_time += 1
+                        effect.affected_time_counter -= 1
+                        if effect.ability_type == "health":
+                            self.health += effect.quantity/effect.affected_time
+
+                        if effect.affected_time_counter < 1:
+                            if effect.ability_type == "speed":
+                                self.speed -= effect.quantity
+
+                            self.affected_ability_dict[ability].remove(effect)
+
+            if not self.affected_ability_dict[ability]:
+                self.affected_ability_dict.pop(ability)
+            return
 class Clicker:
     def __init__(self, battlefield, control_panel, ring):
         self.settings = Settings()
@@ -726,7 +748,7 @@ class Clicker:
     def add_ring_object_list(self, ring_object_list):
         self.ring_object_list = ring_object_list
 
-    def click_action(self, mouse_pos, enemy_list, obj_list):
+    def click_action(self, mouse_pos, enemy_list, obj_list, control_panel_spots_dict):
         self.mouse_pose = mouse_pos
         self.enemy_list = enemy_list
         self.obj_list = obj_list
@@ -734,7 +756,22 @@ class Clicker:
             self.__selection(enemy_list)
             self.battlefield_click()
         elif self.control_panel.rect.collidepoint(mouse_pos):
-            pass
+            for spot in control_panel_spots_dict:
+                if (control_panel_spots_dict[spot][0].spot_surface_rect.collidepoint((mouse_pos[0], mouse_pos[1] - self.settings.game_field_y)) and
+                        not control_panel_spots_dict[spot][0].clicked and
+                        not control_panel_spots_dict[spot][0].global_countdown_active):
+                    control_panel_spots_dict[spot][0].clicked = True
+                    if self.selected_object:
+                        self.selected_object.set_affected_ability(control_panel_spots_dict[spot][0].ability.ability_summary())
+
+                    control_panel_spots_dict[spot][0].start_time = time.time()
+
+                    for spot_2 in control_panel_spots_dict:
+                        if not control_panel_spots_dict[spot_2][0].clicked:
+                            control_panel_spots_dict[spot_2][0].global_countdown_active = True
+                            control_panel_spots_dict[spot_2][0].start_time = time.time()
+
+
 
     def __selection(self, enemy_list):
         for enemy in enemy_list:
