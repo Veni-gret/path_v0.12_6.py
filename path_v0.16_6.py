@@ -16,7 +16,7 @@ from math import sin, cos, pi, radians
 # remove enemy from selected after kill Done
 # ring DONE
 # stop to plasing rock then enemy on the spot
-# Make control panellllll started
+# Make control panellllll started Done
 # make spot wihte
 
 class Game:
@@ -34,6 +34,7 @@ class Game:
         self.panel_image = pg.image.load('main_frame.png')
         self.hp_mask_image = pg.image.load('HP_mask.png')
         self.mob_mask_image = pg.image.load('moob_mask.png')
+        self.wol_holly_fire_image = pg.image.load('ability_1.png')
 
         self.image_dict = {}
 
@@ -74,8 +75,6 @@ class Game:
 
         self.mob_mask.get_rect_2(self.settings.enemy_icon_position)
 
-
-
         self.control_panel_dict_2[self.mob_mask.position] = self.mob_mask
         self.control_panel_dict_2[self.hp_mask.position] = self.hp_mask
 
@@ -110,23 +109,29 @@ class Game:
         self.icon_8 = PanelObject(self.damage, (45, 45), self.control_panel.surface)
         self.clicker.add_ring_object_list([self.icon_4, self.icon_5, self.icon_6, self.icon_7, self.icon_8])
 
-        first_x = 215
+        first_x = 219
         for spot in range(1, 11):
-            self.control_panel_spots_dict[spot] = [ControlPanelSpot(self.control_panel.surface, (30, 30), (first_x, 37))]
-            first_x += 41
-
-        self.wol_holly_fire = AbilitySkill("Word of light: Holly Fire", 1, 5, 'Icons_09.png', 10)
+            self.control_panel_spots_dict[spot] = [ControlPanelSpot(self.control_panel.surface, (27, 27),
+                                                                    (first_x, 35))]
+            first_x += 40
+# "Word of light: Holly Fire"
+        self.wol_holly_fire = AbilitySkill("Word of light: Holly Fire", 1, 5, 'ability_1.png', 10)
 
         self.wol_holly_fire.set_description("""Make instance damage to target 
                                       and burn it for time""")
 
         self.wol_holly_fire.make_effect_list(Ability("health", [-15, -30, -60, -120, -240], "instance"),
-                                    Ability("speed", [-15, -30, -60, -120, -240], 5))
+                                             Ability("speed", [-15, -30, -60, -120, -240], 5))
+# "Word of shadow:Pain"
+        self.wos_pain = AbilitySkill("Word of shadow:Pain", 1, 5, 'ability_2.png', 10)
+
+        self.wol_holly_fire.set_description("""Make instance damage to target 
+                                      and burn it for time""")
+
+        self.wos_pain.make_effect_list(Ability("health", [-40, -80, -160, -320, -640], 10))
 
         self.control_panel_spots_dict[1][0].set_ability(self.wol_holly_fire)
-        self.control_panel_spots_dict[2][0].set_ability(self.wol_holly_fire)
-
-
+        self.control_panel_spots_dict[2][0].set_ability(self.wos_pain)
 
     def run(self):
         play = True
@@ -161,7 +166,6 @@ class Game:
                                 if self.image_dict[key].collidepoint(enemy.enemy_pos):
                                     enemy.collide_point = key
 
-
             for enemy in self.enemy_list:
                 if enemy.health <= 0:
                     self.enemy_list.remove(enemy)
@@ -183,7 +187,6 @@ class Game:
                 enemy.make_target()
                 enemy.affected_ability()
 
-
             for spot in self.control_panel_spots_dict:
                 if self.control_panel_spots_dict[spot][0].ability:
                     self.control_panel_spots_dict[spot][0].countdown_go()
@@ -196,6 +199,8 @@ class Game:
             self.drawer.one_surface(self.main_surface, self.battlefield.surface, self.battlefield.rect)
 
             self.drawer.one_surface(self.main_surface, self.control_panel.surface, self.control_panel.rect)
+            self.control_panel.surface.fill(self.settings.white)
+
             pg.display.update()
             if self.clicker.selected_object:
                 print(self.clicker.selected_object.affected_ability_dict)
@@ -694,7 +699,6 @@ class Enemy:
                 self.path = []
                 self.killer = False
 
-
     def set_affected_ability(self, ability):
         self.affected_ability_dict.update(ability)
 
@@ -727,6 +731,8 @@ class Enemy:
             if not self.affected_ability_dict[ability]:
                 self.affected_ability_dict.pop(ability)
             return
+
+
 class Clicker:
     def __init__(self, battlefield, control_panel, ring):
         self.settings = Settings()
@@ -757,12 +763,12 @@ class Clicker:
             self.battlefield_click()
         elif self.control_panel.rect.collidepoint(mouse_pos):
             for spot in control_panel_spots_dict:
-                if (control_panel_spots_dict[spot][0].spot_surface_rect.collidepoint((mouse_pos[0], mouse_pos[1] - self.settings.game_field_y)) and
+                if self.selected_object and (control_panel_spots_dict[spot][0].spot_surface_rect.collidepoint(
+                        (mouse_pos[0], mouse_pos[1] - self.settings.game_field_y)) and
                         not control_panel_spots_dict[spot][0].clicked and
                         not control_panel_spots_dict[spot][0].global_countdown_active):
                     control_panel_spots_dict[spot][0].clicked = True
-                    if self.selected_object:
-                        self.selected_object.set_affected_ability(control_panel_spots_dict[spot][0].ability.ability_summary())
+                    self.selected_object.set_affected_ability(control_panel_spots_dict[spot][0].ability.ability_summary())
 
                     control_panel_spots_dict[spot][0].start_time = time.time()
 
@@ -770,8 +776,6 @@ class Clicker:
                         if not control_panel_spots_dict[spot_2][0].clicked:
                             control_panel_spots_dict[spot_2][0].global_countdown_active = True
                             control_panel_spots_dict[spot_2][0].start_time = time.time()
-
-
 
     def __selection(self, enemy_list):
         for enemy in enemy_list:
@@ -830,6 +834,7 @@ class Clicker:
                 selected = self.icon_ring_point_dict[key]
         self.ring_work = False
         return selected
+
 
 class ControlPanelSpot:
     def __init__(self, surface, size_c, position):
@@ -905,11 +910,13 @@ class ControlPanelSpot:
         else:
             return
 
+
 class Ability:
     def __init__(self, ability_type, quantity, affected_time):
         self.ability_type = ability_type
         self.quantity = quantity
         self.affected_time = affected_time
+
 
 class AbilitySkill:
     def __init__(self, name, lvl, max_lvl, image_icon, countdown_time):
