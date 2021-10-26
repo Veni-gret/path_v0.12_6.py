@@ -18,6 +18,7 @@ from math import sin, cos, pi, radians
 # stop to plasing rock then enemy on the spot
 # Make control panellllll started Done
 # make spot wihte
+# incorect spell action then cast spell after the dot
 
 class Game:
     def __init__(self):
@@ -115,7 +116,7 @@ class Game:
                                                                     (first_x, 35))]
             first_x += 40
 # "Word of light: Holly Fire"
-        self.wol_holly_fire = AbilitySkill("Word of light: Holly Fire", 1, 5, 'ability_1.png', 10)
+        self.wol_holly_fire = AbilitySkill("Word of light: Holly Fire", 1, 5, 'ability_1.png', 10, 3)
 
         self.wol_holly_fire.set_description("""Make instance damage to target 
                                       and burn it for time""")
@@ -123,7 +124,7 @@ class Game:
         self.wol_holly_fire.make_effect_list(Ability("health", [-15, -30, -60, -120, -240], "instance"),
                                              Ability("speed", [-15, -30, -60, -120, -240], 5))
 # "Word of shadow:Pain"
-        self.wos_pain = AbilitySkill("Word of shadow:Pain", 1, 5, 'ability_2.png', 10)
+        self.wos_pain = AbilitySkill("Word of shadow:Pain", 1, 5, 'ability_2.png', 10, "instance")
 
         self.wol_holly_fire.set_description("""Make instance damage to target 
                                       and burn it for time""")
@@ -191,6 +192,34 @@ class Game:
                 if self.control_panel_spots_dict[spot][0].ability:
                     self.control_panel_spots_dict[spot][0].countdown_go()
 
+            for spell in self.control_panel_spots_dict:
+                if (self.control_panel_spots_dict[spell][0].ability and
+                   self.control_panel_spots_dict[spell][0].ability.clicked and
+                   self.control_panel_spots_dict[spell][0].ability.casting_time == "instance"):
+
+                    self.clicker.selected_object.set_affected_ability(
+                        self.control_panel_spots_dict[spell][0].ability.ability_summary())
+                    self.control_panel_spots_dict[spell][0].ability.clicked = False
+
+                elif (self.control_panel_spots_dict[spell][0].ability and
+                      self.control_panel_spots_dict[spell][0].ability.clicked and
+                      self.control_panel_spots_dict[spell][0].ability.casting_time != "instance" and
+                      self.control_panel_spots_dict[spell][0].ability.casting_timer is None):
+                    self.control_panel_spots_dict[spell][0].ability.casting_timer = time.time() #beginig of cast
+                    self.control_panel_spots_dict[spell][0].ability.clicked = False
+
+                elif (self.control_panel_spots_dict[spell][0].ability and
+                      self.control_panel_spots_dict[spell][0].ability.casting_timer is not None and
+                      time.time() - self.control_panel_spots_dict[spell][0].ability.casting_timer >=
+                      self.control_panel_spots_dict[spell][0].ability.casting_time):
+                    self.clicker.selected_object.set_affected_ability(
+                        self.control_panel_spots_dict[spell][0].ability.ability_summary())
+                    self.control_panel_spots_dict[spell][0].ability.casting_timer = None
+                    print("cat")
+
+
+
+
             if self.clicker.selected_object is not None:
                 self.control_panel.make_selected_object(self.clicker.selected_object)
 
@@ -202,9 +231,9 @@ class Game:
             self.control_panel.surface.fill(self.settings.white)
 
             pg.display.update()
-            if self.clicker.selected_object:
-                print(self.clicker.selected_object.affected_ability_dict)
-                print(self.clicker.selected_object.health)
+#            if self.clicker.selected_object:
+#                print(self.clicker.selected_object.affected_ability_dict)
+#                print(self.clicker.selected_object.health)
 
             self.clock.tick(self.settings.fps)
         pg.quit()
@@ -489,7 +518,6 @@ class Enemy:
         self.square = pg.transform.scale(image, self.size)
         self.affected_ability_dict = {}
 
-
     def target_priority(self):
         max_target_rank = self.target_priority_min
         self.target_priority_dict.clear()
@@ -768,7 +796,7 @@ class Clicker:
                         not control_panel_spots_dict[spot][0].clicked and
                         not control_panel_spots_dict[spot][0].global_countdown_active):
                     control_panel_spots_dict[spot][0].clicked = True
-                    self.selected_object.set_affected_ability(control_panel_spots_dict[spot][0].ability.ability_summary())
+                    control_panel_spots_dict[spot][0].ability.clicked = True
 
                     control_panel_spots_dict[spot][0].start_time = time.time()
 
@@ -917,9 +945,8 @@ class Ability:
         self.quantity = quantity
         self.affected_time = affected_time
 
-
 class AbilitySkill:
-    def __init__(self, name, lvl, max_lvl, image_icon, countdown_time):
+    def __init__(self, name, lvl, max_lvl, image_icon, countdown_time, casting_time):
         self.name = name
         self.lvl = lvl
         self.max_lvl = max_lvl
@@ -929,6 +956,9 @@ class AbilitySkill:
         self.icon = pg.image.load(image_icon)
         self.image = pg.image.load(image_icon)
         self.ability_dict = {}
+        self.casting_time = casting_time
+        self.clicked = False
+        self.casting_timer = None
 
     def set_description(self, desc):
         self.__description = desc
