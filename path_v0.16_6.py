@@ -130,6 +130,7 @@ class Game:
         self.wol_holly_fire.set_description("""Make instance damage to target 
                                       and burn it for time""")
 
+
         self.wos_pain.make_effect_list(Ability("health", [-40, -80, -160, -320, -640], 10))
 
         self.control_panel_spots_dict[1][0].set_ability(self.wol_holly_fire)
