@@ -18,7 +18,8 @@ from math import sin, cos, pi, radians
 # stop to plasing rock then enemy on the spot
 # Make control panellllll started Done
 # make spot wihte
-# incorect spell action then cast spell after the dot
+# incorect spell action then cast spell after the dot (lol return in the wrong place)
+# make channeling spell
 
 class Game:
     def __init__(self):
@@ -134,6 +135,17 @@ class Game:
         self.control_panel_spots_dict[1][0].set_ability(self.wol_holly_fire)
         self.control_panel_spots_dict[2][0].set_ability(self.wos_pain)
 
+# "Word of shadow:chant"
+        self.wos_pain = AbilitySkill("Word of shadow:Chant", 1, 5, 'ability_3.png', 10, "instance")
+
+        self.wol_holly_fire.set_description("""Make instance damage to target 
+                                          and burn it for time""")
+
+        self.wos_pain.make_effect_list(Ability("health", [-40, -80, -160, -320, -640], 10))
+
+        self.control_panel_spots_dict[1][0].set_ability(self.wol_holly_fire)
+        self.control_panel_spots_dict[2][0].set_ability(self.wos_pain)
+
     def run(self):
         play = True
         start_time = time.time()
@@ -231,8 +243,8 @@ class Game:
             self.control_panel.surface.fill(self.settings.white)
 
             pg.display.update()
-#            if self.clicker.selected_object:
-#                print(self.clicker.selected_object.affected_ability_dict)
+            if self.clicker.selected_object:
+                print(self.clicker.selected_object.affected_ability_dict)
 #                print(self.clicker.selected_object.health)
 
             self.clock.tick(self.settings.fps)
@@ -758,7 +770,7 @@ class Enemy:
 
             if not self.affected_ability_dict[ability]:
                 self.affected_ability_dict.pop(ability)
-            return
+        return
 
 
 class Clicker:

@@ -3,14 +3,71 @@ from math import sin, cos, radians
 import time
 
 
+class AbilitySkill:
+    def __init__(self, name, lvl, image_icon):
+        self.name = name
+        self.lvl = lvl
+        self.countdown_time = 0
+        self.description = None
+        self.effect_list = []
+        self.icon = pg.image.load(image_icon)
 
+    def set_description(self, desc):
+        self.description = desc
+
+    def make_effect_list(self, *args):
+        for arg in args:
+            self.effect_list.append(arg)
+
+class AbilityTrans:
+    def __init__(self, icon, ability_type, quantity, affected_time):
+        self.icon = icon
+        self.ability_type = ability_type
+        self.quantity = quantity
+        self.affected_time = affected_time
+        self.start_time = None
+        self.empty = False
+
+
+class Enemy:
+    def __init__(self):
+        self.max_health = 100
+        self.current_health = 100
+        self.affected_ability_dict = {}
+
+
+    def set_affected_ability(self, ability):
+        print(ability, 'ttt')
+        self.affected_ability_dict.update(ability)
+
+    def affected_ability(self):
+        for ability in self.affected_ability_dict:
+            for effect in self.affected_ability_dict[ability]:
+
+                if not effect.empty:
+                    if effect.start_time is None:
+                        effect.start_time = time.time()
+
+                    elif time.time()-effect.start_time >= 1:
+                        effect.start_time += 1
+                        effect.affected_time -= 1
+                        if effect.affected_time < 0:
+                            effect.empty = True
+                return
 
 
 class Ability:
     def __init__(self):
+        self.icon = None
         self.countdown_time = 0
-        self.activation = False
+        self.ability_type = None
         self.ability_lvl = 0
+        self.ability_name = ""
+        self.quantity = 0
+        self.affected_time = 0
+        self.summary = {}
+        self.effects_numbers = 0
+
 
     def set_countdown(self, new_countdown_time):
         self.countdown_time = new_countdown_time
@@ -21,26 +78,47 @@ class Ability:
     def ability_action(self):
         pass
 
+    def ability_summary(self):
+        for ability in range(self.effects_numbers):
+            print("cat")
+            self.summary[self.ability_name] = []
+            self.summary[self.ability_name].append(AbilityTrans(self.icon, self.ability_type,
+                                                                self.quantity, self.affected_time))
+        return self.summary
+
 
 class DamageOverTime(Ability):
     def __init__(self, ability_name, image_icon, base_countdown_time):
         super().__init__()
         self.ability_name = ability_name
         self.image = pg.image.load(image_icon)
+        self.icon = pg.image.load(image_icon)
         self.countdown_time = base_countdown_time
         self.ability_lvl = 1
-        self.damage_in_second = 5
-        self.damage_time = 5
-        self.activation = False
+        self.quantity = 5
+        self.affected_time = 10
         self.ability_start_time = 0
-        self.in_progress = False
+        self.in_progress = True
+        self.start_time = 0
+        self.effects_numbers = 1
 
-    def ability_action(self):
-        if self.activation:
-            self.ability_start_time = time.time()
+class InstantDamage(Ability):
+    def __init__(self, ability_name, image_icon, base_countdown_time):
+        super().__init__()
+        self.ability_name = ability_name
+        self.image = pg.image.load(image_icon)
+        self.icon = pg.image.load(image_icon)
+        self.countdown_time = base_countdown_time
+        self.ability_lvl = 1
+        self.quantity = 5
+        self.affected_time = 10
+        self.ability_start_time = 0
+        self.in_progress = True
+        self.start_time = 0
+        self.effects_numbers = 1
 
-            print("Cat")
-            self.activation = False
+
+
 
 class ControlPanelSpot:
     def __init__(self, surface, size_c, position):
@@ -130,7 +208,7 @@ RED = (255, 0, 0)
 size = [700, 800]
 screen = pg.display.set_mode(size)
 
-
+enemy = Enemy()
 # Loop until the user clicks the close button.
 done = False
 clock = pg.time.Clock()
@@ -142,9 +220,15 @@ for spot in range(1, 11):
     control_panel_spots_dict[spot] = [ControlPanelSpot(screen, (70, 70), (first_x, 35))]
     first_x += 70
 spot_a = 1
-ability_1 = DamageOverTime('Icons_01.png', 'Icons_01.png', 10)
+ability_1 = DamageOverTime('Icons.png', 'Icons_01.png', 10)
+ability_2 = DamageOverTime('Icons_02.png', 'Icons_02.png', 10)
 
+wol_holly_fire = AbilitySkill("Word of light: Holly Fire", 1, 'Icons_07.png')
+
+wol_holly_fire.description("""Make instance damage to target
+                             and burn it for time""")
 control_panel_spots_dict[1][0].set_ability(ability_1)
+control_panel_spots_dict[2][0].set_ability(ability_2)
 
 
 pressed = None
@@ -168,7 +252,8 @@ while not done:
                         not control_panel_spots_dict[spot][0].global_countdown_active):
                     if control_panel_spots_dict[spot] == pressed:
                         control_panel_spots_dict[spot][0].clicked = True
-                        control_panel_spots_dict[spot][0].ability.activation = True
+                        enemy.set_affected_ability(control_panel_spots_dict[spot][0].ability.ability_summary())
+
                         control_panel_spots_dict[spot][0].start_time = time.time()
 
                         for spot_2 in control_panel_spots_dict:
@@ -180,8 +265,11 @@ while not done:
 
     for spot in control_panel_spots_dict:
         if control_panel_spots_dict[spot][0].ability:
-            control_panel_spots_dict[spot][0].ability.ability_action()
             control_panel_spots_dict[spot][0].countdown_go()
 
+    enemy.affected_ability()
+    print(enemy.affected_ability_dict)
+#    if ability_1.summary:
+#        print(ability_1.summary['Icons.png'][0].affected_time)
     pg.display.flip()
 pg.quit()
