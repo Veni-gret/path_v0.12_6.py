@@ -17,9 +17,11 @@ from math import sin, cos, pi, radians
 # ring DONE
 # stop to plasing rock then enemy on the spot
 # Make control panellllll started Done
-# make spot wihte
-# incorect spell action then cast spell after the dot (lol return in the wrong place)
+# make spot wihte Done
+# incorect spell action then cast spell after the dot Done (lol return in the wrong place)
 # make channeling spell
+# cast interruption Done
+# problem with target change while casting spell
 
 class Game:
     def __init__(self):
@@ -117,7 +119,7 @@ class Game:
                                                                     (first_x, 35))]
             first_x += 40
 # "Word of light: Holly Fire"
-        self.wol_holly_fire = AbilitySkill("Word of light: Holly Fire", 1, 5, 'ability_1.png', 10, 3)
+        self.wol_holly_fire = AbilitySkill("Word of light: Holly Fire", 1, 5, 'ability_1.png', 10, "cast", 3)
 
         self.wol_holly_fire.set_description("""Make instance damage to target 
                                       and burn it for time""")
@@ -133,19 +135,19 @@ class Game:
 
         self.wos_pain.make_effect_list(Ability("health", [-40, -80, -160, -320, -640], 10))
 
-        self.control_panel_spots_dict[1][0].set_ability(self.wol_holly_fire)
-        self.control_panel_spots_dict[2][0].set_ability(self.wos_pain)
 
 # "Word of shadow:chant"
-        self.wos_pain = AbilitySkill("Word of shadow:Chant", 1, 5, 'ability_3.png', 10, "instance")
+        self.wos_chant = AbilitySkill("Word of shadow:Chant", 1, 5, 'ability_3.png', 10, "channeled", 3)
 
         self.wol_holly_fire.set_description("""Make instance damage to target 
                                           and burn it for time""")
 
-        self.wos_pain.make_effect_list(Ability("health", [-40, -80, -160, -320, -640], 10))
+        self.wos_chant.make_effect_list(Ability("health", [-10, -80, -160, -320, -640], "channeled"))
 
         self.control_panel_spots_dict[1][0].set_ability(self.wol_holly_fire)
         self.control_panel_spots_dict[2][0].set_ability(self.wos_pain)
+        self.control_panel_spots_dict[3][0].set_ability(self.wos_chant)
+
 
     def run(self):
         play = True
@@ -207,19 +209,30 @@ class Game:
 
             for spell in self.control_panel_spots_dict:
                 if (self.control_panel_spots_dict[spell][0].ability and
-                   self.control_panel_spots_dict[spell][0].ability.clicked and
-                   self.control_panel_spots_dict[spell][0].ability.casting_time == "instance"):
+                   self.control_panel_spots_dict[spell][0].ability.clicked):
 
-                    self.clicker.selected_object.set_affected_ability(
-                        self.control_panel_spots_dict[spell][0].ability.ability_summary())
-                    self.control_panel_spots_dict[spell][0].ability.clicked = False
+                    for spell_2 in self.control_panel_spots_dict:   # cast interruption block
+                        if (self.control_panel_spots_dict[spell_2][0].ability and
+                           self.control_panel_spots_dict[spell_2][0].ability.casting_timer is not None):
+                            self.control_panel_spots_dict[spell_2][0].ability.casting_timer = None
+                        elif (self.control_panel_spots_dict[spell_2][0].ability and
+                              self.control_panel_spots_dict[spell_2][0].ability.channeling_timer is not None):
+                            self.control_panel_spots_dict[spell_2][0].ability.channeling_timer = None
 
-                elif (self.control_panel_spots_dict[spell][0].ability and
-                      self.control_panel_spots_dict[spell][0].ability.clicked and
-                      self.control_panel_spots_dict[spell][0].ability.casting_time != "instance" and
-                      self.control_panel_spots_dict[spell][0].ability.casting_timer is None):
-                    self.control_panel_spots_dict[spell][0].ability.casting_timer = time.time() #beginig of cast
-                    self.control_panel_spots_dict[spell][0].ability.clicked = False
+                    if self.control_panel_spots_dict[spell][0].ability.casting_type == "instance":
+                        self.clicker.selected_object.set_affected_ability(
+                            self.control_panel_spots_dict[spell][0].ability.ability_summary())
+                        self.control_panel_spots_dict[spell][0].ability.clicked = False
+                    elif self.control_panel_spots_dict[spell][0].ability.casting_type == "cast":
+                        self.control_panel_spots_dict[spell][0].ability.casting_timer = time.time()  # beginnig of cast
+                        self.control_panel_spots_dict[spell][0].ability.clicked = False
+
+                    elif self.control_panel_spots_dict[spell][0].ability.casting_type == "channeled":
+                        self.control_panel_spots_dict[spell][0].ability.channeling_timer = time.time()
+                        self.clicker.selected_object.set_affected_ability(
+                            self.control_panel_spots_dict[spell][0].ability.ability_summary())
+
+                        self.control_panel_spots_dict[spell][0].ability.clicked = False
 
                 elif (self.control_panel_spots_dict[spell][0].ability and
                       self.control_panel_spots_dict[spell][0].ability.casting_timer is not None and
@@ -228,6 +241,13 @@ class Game:
                     self.clicker.selected_object.set_affected_ability(
                         self.control_panel_spots_dict[spell][0].ability.ability_summary())
                     self.control_panel_spots_dict[spell][0].ability.casting_timer = None
+
+                elif (self.control_panel_spots_dict[spell][0].ability and
+                      self.control_panel_spots_dict[spell][0].ability.channeling_timer is not None and
+                      time.time() - self.control_panel_spots_dict[spell][0].ability.channeling_timer >=
+                      self.control_panel_spots_dict[spell][0].ability.casting_time):
+                    self.clicker.selected_object.affected_ability_dict.pop(self.control_panel_spots_dict[spell][0].ability.name)
+                    self.control_panel_spots_dict[spell][0].ability.channeling_timer = None
                     print("cat")
 
 
@@ -530,6 +550,7 @@ class Enemy:
         self.rect = None
         self.square = pg.transform.scale(image, self.size)
         self.affected_ability_dict = {}
+        self.empty_ability_list = []
 
     def target_priority(self):
         max_target_rank = self.target_priority_min
@@ -751,6 +772,8 @@ class Enemy:
                         self.health += effect.quantity
 
                         self.affected_ability_dict[ability].remove(effect)
+                    elif effect.affected_time == "channeled":
+                        print("CATT")
 
                     elif effect.start_time is None:
                         effect.start_time = time.time()
@@ -770,8 +793,11 @@ class Enemy:
                             self.affected_ability_dict[ability].remove(effect)
 
             if not self.affected_ability_dict[ability]:
-                self.affected_ability_dict.pop(ability)
-        return
+                self.empty_ability_list.append(ability)
+        for ability in self.empty_ability_list:
+            self.affected_ability_dict.pop(ability)
+        self.empty_ability_list = []
+
 
 
 class Clicker:
@@ -959,7 +985,7 @@ class Ability:
         self.affected_time = affected_time
 
 class AbilitySkill:
-    def __init__(self, name, lvl, max_lvl, image_icon, countdown_time, casting_time):
+    def __init__(self, name, lvl, max_lvl, image_icon, countdown_time, casting_type, casting_time=0):
         self.name = name
         self.lvl = lvl
         self.max_lvl = max_lvl
@@ -972,6 +998,8 @@ class AbilitySkill:
         self.casting_time = casting_time
         self.clicked = False
         self.casting_timer = None
+        self.casting_type = casting_type
+        self.channeling_timer = None
 
     def set_description(self, desc):
         self.__description = desc
