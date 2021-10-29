@@ -18,10 +18,11 @@ from math import sin, cos, pi, radians
 # stop to plasing rock then enemy on the spot
 # Make control panellllll started Done
 # make spot wihte Done
-# incorect spell action then cast spell after the dot Done (lol return in the wrong place)
-# make channeling spell
+# incorect spell action then cast spell after the dot Done
+# make channeling spell Done
 # cast interruption Done
-# problem with target change while casting spell
+# problem with target change while casting and channaling spells
+
 
 class Game:
     def __init__(self):
@@ -125,7 +126,7 @@ class Game:
                                       and burn it for time""")
 
         self.wol_holly_fire.make_effect_list(Ability("health", [-15, -30, -60, -120, -240], "instance"),
-                                             Ability("speed", [-15, -30, -60, -120, -240], 5))
+                                             Ability("speed", [-15, -30, -60, -120, -240], 'over_time', 5))
 # "Word of shadow:Pain"
         self.wos_pain = AbilitySkill("Word of shadow:Pain", 1, 5, 'ability_2.png', 10, "instance")
 
@@ -133,16 +134,16 @@ class Game:
                                       and burn it for time""")
 
 
-        self.wos_pain.make_effect_list(Ability("health", [-40, -80, -160, -320, -640], 10))
+        self.wos_pain.make_effect_list(Ability("health", [-40, -80, -160, -320, -640], 'over_time',10))
 
 
 # "Word of shadow:chant"
-        self.wos_chant = AbilitySkill("Word of shadow:Chant", 1, 5, 'ability_3.png', 10, "channeled", 3)
+        self.wos_chant = AbilitySkill("Word of shadow:Chant", 1, 5, 'ability_3.png', 10, "instance")
 
         self.wol_holly_fire.set_description("""Make instance damage to target 
                                           and burn it for time""")
 
-        self.wos_chant.make_effect_list(Ability("health", [-10, -80, -160, -320, -640], "channeled"))
+        self.wos_chant.make_effect_list(Ability("health", [-15, -80, -160, -320, -640], "channeled", 3))
 
         self.control_panel_spots_dict[1][0].set_ability(self.wol_holly_fire)
         self.control_panel_spots_dict[2][0].set_ability(self.wos_pain)
@@ -207,6 +208,7 @@ class Game:
                 if self.control_panel_spots_dict[spot][0].ability:
                     self.control_panel_spots_dict[spot][0].countdown_go()
 
+# spell handler
             for spell in self.control_panel_spots_dict:
                 if (self.control_panel_spots_dict[spell][0].ability and
                    self.control_panel_spots_dict[spell][0].ability.clicked):
@@ -215,42 +217,40 @@ class Game:
                         if (self.control_panel_spots_dict[spell_2][0].ability and
                            self.control_panel_spots_dict[spell_2][0].ability.casting_timer is not None):
                             self.control_panel_spots_dict[spell_2][0].ability.casting_timer = None
-                        elif (self.control_panel_spots_dict[spell_2][0].ability and
-                              self.control_panel_spots_dict[spell_2][0].ability.channeling_timer is not None):
-                            self.control_panel_spots_dict[spell_2][0].ability.channeling_timer = None
+
+                    for enemy in self.enemy_list:
+                        if enemy.channeled:
+                            print("CATTS")
+                            enemy.cansel_channel = True
+                            enemy.channeled = False
 
                     if self.control_panel_spots_dict[spell][0].ability.casting_type == "instance":
                         self.clicker.selected_object.set_affected_ability(
                             self.control_panel_spots_dict[spell][0].ability.ability_summary())
+
                         self.control_panel_spots_dict[spell][0].ability.clicked = False
+
                     elif self.control_panel_spots_dict[spell][0].ability.casting_type == "cast":
                         self.control_panel_spots_dict[spell][0].ability.casting_timer = time.time()  # beginnig of cast
                         self.control_panel_spots_dict[spell][0].ability.clicked = False
 
-                    elif self.control_panel_spots_dict[spell][0].ability.casting_type == "channeled":
-                        self.control_panel_spots_dict[spell][0].ability.channeling_timer = time.time()
-                        self.clicker.selected_object.set_affected_ability(
-                            self.control_panel_spots_dict[spell][0].ability.ability_summary())
 
-                        self.control_panel_spots_dict[spell][0].ability.clicked = False
 
                 elif (self.control_panel_spots_dict[spell][0].ability and
                       self.control_panel_spots_dict[spell][0].ability.casting_timer is not None and
+
                       time.time() - self.control_panel_spots_dict[spell][0].ability.casting_timer >=
                       self.control_panel_spots_dict[spell][0].ability.casting_time):
                     self.clicker.selected_object.set_affected_ability(
                         self.control_panel_spots_dict[spell][0].ability.ability_summary())
                     self.control_panel_spots_dict[spell][0].ability.casting_timer = None
 
-                elif (self.control_panel_spots_dict[spell][0].ability and
-                      self.control_panel_spots_dict[spell][0].ability.channeling_timer is not None and
-                      time.time() - self.control_panel_spots_dict[spell][0].ability.channeling_timer >=
-                      self.control_panel_spots_dict[spell][0].ability.casting_time):
-                    self.clicker.selected_object.affected_ability_dict.pop(self.control_panel_spots_dict[spell][0].ability.name)
-                    self.control_panel_spots_dict[spell][0].ability.channeling_timer = None
-                    print("cat")
 
-
+#            if self.clicker.selected_object and not self.clicker.selected_object.channeled:
+#                for enemy in self.enemy_list:
+#                    if enemy.channeled:
+#                        enemy.cansel_channel = True
+#                        enemy.channeled = False
 
 
             if self.clicker.selected_object is not None:
@@ -264,8 +264,8 @@ class Game:
             self.control_panel.surface.fill(self.settings.white)
 
             pg.display.update()
-            if self.clicker.selected_object:
-                print(self.clicker.selected_object.affected_ability_dict)
+#            if self.clicker.selected_object:
+#                print(self.clicker.selected_object.affected_ability_dict)
 #                print(self.clicker.selected_object.health)
 
             self.clock.tick(self.settings.fps)
@@ -551,6 +551,8 @@ class Enemy:
         self.square = pg.transform.scale(image, self.size)
         self.affected_ability_dict = {}
         self.empty_ability_list = []
+        self.channeled = False
+        self.cansel_channel = False
 
     def target_priority(self):
         max_target_rank = self.target_priority_min
@@ -768,29 +770,48 @@ class Enemy:
         for ability in self.affected_ability_dict:
             for effect in self.affected_ability_dict[ability]:
                 if effect:
-                    if effect.affected_time == "instance":
+                    if effect.effect_type == "instance":
                         self.health += effect.quantity
-
                         self.affected_ability_dict[ability].remove(effect)
-                    elif effect.affected_time == "channeled":
-                        print("CATT")
 
-                    elif effect.start_time is None:
-                        effect.start_time = time.time()
-                        if effect.ability_type == "speed":
-                            self.speed += effect.quantity
-
-                    elif time.time()-effect.start_time >= 1:
-                        effect.start_time += 1
-                        effect.affected_time_counter -= 1
-                        if effect.ability_type == "health":
-                            self.health += effect.quantity/effect.affected_time
-
-                        if effect.affected_time_counter < 1:
-                            if effect.ability_type == "speed":
-                                self.speed -= effect.quantity
-
+                    elif effect.effect_type == "channeled":
+                        self.channeled = True
+                        if self.cansel_channel:
+                            print("catss2")
                             self.affected_ability_dict[ability].remove(effect)
+                            self.cansel_channel = False
+                            self.channeled = False
+
+                        elif effect.start_time is None:
+                            effect.start_time = time.time()
+                        elif time.time()-effect.start_time >= 1:
+                            effect.start_time += 1
+                            effect.affected_time_counter -= 1
+                            if effect.ability_type == "health":
+                                self.health += effect.quantity/effect.affected_time
+
+                            if effect.affected_time_counter < 1:
+                                self.affected_ability_dict[ability].remove(effect)
+                                self.channeled = False
+
+
+                    elif effect.effect_type == 'over_time':
+                        if effect.start_time is None:
+                            effect.start_time = time.time()
+                            if effect.ability_type == "speed":
+                                self.speed += effect.quantity
+
+                        elif time.time()-effect.start_time >= 1:
+                            effect.start_time += 1
+                            effect.affected_time_counter -= 1
+                            if effect.ability_type == "health":
+                                self.health += effect.quantity/effect.affected_time
+
+                            if effect.affected_time_counter < 1:
+                                if effect.ability_type == "speed":
+                                    self.speed -= effect.quantity
+
+                                self.affected_ability_dict[ability].remove(effect)
 
             if not self.affected_ability_dict[ability]:
                 self.empty_ability_list.append(ability)
@@ -979,9 +1000,10 @@ class ControlPanelSpot:
 
 
 class Ability:
-    def __init__(self, ability_type, quantity, affected_time):
+    def __init__(self, ability_type, quantity, effect_type, affected_time=0):
         self.ability_type = ability_type
         self.quantity = quantity
+        self.effect_type = effect_type
         self.affected_time = affected_time
 
 class AbilitySkill:
@@ -1011,19 +1033,21 @@ class AbilitySkill:
     def ability_summary(self):
         self.ability_dict[self.name] = []
         for effect in self.effect_list:
-            self.ability_dict[self.name].append(AbilityTrans(self.icon, effect.ability_type,
-                                                             effect.quantity[self.lvl-1], effect.affected_time))
+            self.ability_dict[self.name].append(AbilityTrans(self.icon, effect.ability_type, effect.quantity[self.lvl-1],
+                                                             effect.effect_type, effect.affected_time))
         return self.ability_dict
 
 
 class AbilityTrans:
-    def __init__(self, icon, ability_type, quantity, affected_time):
+    def __init__(self, icon, ability_type, quantity, effect_type, affected_time):
         self.icon = icon
         self.ability_type = ability_type
         self.quantity = quantity
         self.affected_time = affected_time
         self.affected_time_counter = affected_time
         self.start_time = None
+        self.effect_type = effect_type
+
         self.cat = 0
 
 
